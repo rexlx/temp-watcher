@@ -18,6 +18,8 @@ var (
 	server = flag.Bool("server", false, "run as server")
 	port   = flag.String("port", "8080", "port to run on")
 	name   = flag.String("name", "", "name of the app")
+	poll = flag.Duration("poll", 5 * time.Second, "how often to poll for temperature")
+	metrics = flag.Duration("metrics", 600 * time.Second, "how often to print metrics")
 )
 
 type Temperature struct {
@@ -53,7 +55,7 @@ func main() {
 		run.Server.Forever()
 	} else {
 		log.Println("Running as client", *url)
-		for range time.Tick(5 * time.Second) {
+		for range time.Tick(*poll) {
 			SendTemperatureOverHTTP(PrepareTemperature())
 		}
 	}
@@ -71,7 +73,7 @@ func NewServer(url string, port string) *Server {
 func (s *Server) Forever() {
 	log.Println("Running as server", s.Port)
 	go func() {
-		for range time.Tick(420 * time.Second) {
+		for range time.Tick(*metrics) {
 			log.Println("Temperatures posted:", s.TempsPosted)
 			log.Println("Average temperature:", s.GetAverageTemperature())
 		}
@@ -187,7 +189,35 @@ func SendTemperatureOverHTTP(t []byte) {
 func (s *Server) AddTemperature(t Temperature) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
+	if len(s.Temperatures) > 10000 {
+		SaveTemperatures(s.Temperatures)
+		s.Temperatures = nil
+	}
 	s.Temperatures = append(s.Temperatures, t)
+}
+
+func (s *Server) GetTemperatures() []Temperature {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	return s.Temperatures
+}	
+
+
+func SaveTemperatures(tmps []Temperature) {
+	// create timestamp for file
+	t := time.Now().Format("2006-01-02T15:04:05")
+	// save to file
+	f, err := os.OpenFile(fmt.Sprintf("%v-temps.json", t), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalln("SaveTemperatures (Open)", err)
+	}
+	defer f.Close()
+	for _, tmp := range tmps {
+		_, err := f.WriteString(fmt.Sprintf("%v\n", tmp))
+		if err != nil {
+			log.Fatalln("SaveTemperatures (Write)", err)
+		}
+	}
 }
 
 func (s *Server) RecieveTemperatureOverHTTP(w http.ResponseWriter, r *http.Request) {
