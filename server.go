@@ -9,13 +9,17 @@ import (
 	"time"
 )
 
+// Server is a struct that holds the state of the server
 type Server struct {
 	Mu           sync.Mutex
 	TempsPosted  int
 	Port         string
+	TickRate     time.Duration
 	Temperatures []Temperature
+	Name         string
 }
 
+// safely add a temperature to the slice. If the slice is too long, save it to a file and clear it.
 func (s *Server) AddTemperature(t Temperature) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
@@ -26,23 +30,34 @@ func (s *Server) AddTemperature(t Temperature) {
 	s.Temperatures = append(s.Temperatures, t)
 }
 
+func (s *Server) SetTickRate(d time.Duration) {
+	s.TickRate = d
+}
+
+func (s *Server) SetName(name string) {
+	s.Name = name
+}
+
+// GetTemperatures returns the slice of temperatures
 func (s *Server) GetTemperatures() []Temperature {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
 	return s.Temperatures
 }
 
-func NewServer(url string, port string) *Server {
+// returns an address to a new Server
+func NewServer(port string) *Server {
 	return &Server{
 		Port:         port,
 		Temperatures: []Temperature{},
 	}
 }
 
+// Forever runs the server forever, wonder if we should return an error and return our Listener
 func (s *Server) Forever() {
 	log.Println("Running as server", s.Port)
 	go func() {
-		for range time.Tick(*metrics) {
+		for range time.Tick(s.TickRate) {
 			log.Println("Temperatures posted:", s.TempsPosted)
 			log.Println("Average temperature:", s.GetAverageTemperature())
 		}
@@ -52,20 +67,20 @@ func (s *Server) Forever() {
 }
 
 func (s *Server) GetAverageTemperature() float64 {
+	var sum float64
+
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+
 	if len(s.Temperatures) == 0 {
 		return 0
 	}
-	var sum float64
+
 	for _, temp := range s.Temperatures {
 		sum += temp.Temp
 	}
-	return sum / float64(len(s.Temperatures))
-}
 
-func NewRuntime(name string) *Runtime {
-	return &Runtime{
-		Hostname: GetHostnameOrDie(name),
-	}
+	return sum / float64(len(s.Temperatures))
 }
 
 func (s *Server) RecieveTemperatureOverHTTP(w http.ResponseWriter, r *http.Request) {

@@ -22,16 +22,27 @@ type Runtime struct {
 	Hostname string
 }
 
+func NewRuntime(name, url string) *Runtime {
+	return &Runtime{
+		URL:      url,
+		Hostname: GetHostnameOrDie(name),
+	}
+}
+
 func main() {
 	flag.Parse()
-	run := NewRuntime(*name)
+	run := NewRuntime(*name, *url)
 	if *server {
-		run.Server = NewServer(*url, *port)
+		run.Server = NewServer(*port)
+		run.Server.SetTickRate(*metrics)
+		run.Server.SetName(run.Hostname)
 		run.Server.Forever()
 	} else {
 		run.Client = NewClient()
-		for range time.Tick(*poll) {
-			run.Client.SendTemperatureOverHTTP(PrepareTemperature())
+		run.Client.SetTickRate(*poll)
+		run.Client.SetName(run.Hostname)
+		for range time.Tick(run.Client.TickRate) {
+			run.Client.SendTemperatureOverHTTP(run.URL)
 		}
 	}
 }
