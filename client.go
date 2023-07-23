@@ -24,13 +24,11 @@ func (c *Client) SendTemperatureOverHTTP(url string) {
 	out := c.createNewTemperature()
 
 	o, err := json.Marshal(out)
-
 	if err != nil {
 		log.Fatalln("PrepareTemperature", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(o)))
-
 	if err != nil {
 		log.Println("SendTemperatureOverHTTP (New)", err)
 	}
@@ -39,13 +37,11 @@ func (c *Client) SendTemperatureOverHTTP(url string) {
 
 	// send request
 	resp, err := c.HTTPClient.Do(req)
-
 	if err != nil {
 		log.Println("SendTemperatureOverHTTP (Do)", err)
 	}
 
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		log.Println("Error sending temperature", resp.StatusCode)
 	}

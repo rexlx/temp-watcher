@@ -53,9 +53,13 @@ func SaveTemperatures(tmps []Temperature) {
 	if err != nil {
 		log.Fatalln("SaveTemperatures (Marshal)", err)
 	}
-	// write to file
+	// write to file with newline
 	_, err = f.Write(out)
 	if err != nil {
 		log.Fatalln("SaveTemperatures (Write)", err)
+	}
+	_, err = f.WriteString("\n")
+	if err != nil {
+		log.Fatalln("SaveTemperatures (Write newline)", err)
 	}
 }
