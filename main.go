@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	url    = flag.String("url", "http://localhost:8080/temperature", "URL to send temperature to")
-	server = flag.Bool("server", false, "run as server")
-	port   = flag.String("port", "8080", "port to run on")
-	name   = flag.String("name", "", "name of the app")
-	poll = flag.Duration("poll", 5 * time.Second, "how often to poll for temperature")
-	metrics = flag.Duration("metrics", 600 * time.Second, "how often to print metrics")
+	url     = flag.String("url", "http://localhost:8080/temperature", "URL to send temperature to")
+	server  = flag.Bool("server", false, "run as server")
+	port    = flag.String("port", "8080", "port to run on")
+	name    = flag.String("name", "", "name of the app")
+	poll    = flag.Duration("poll", 5*time.Second, "how often to poll for temperature")
+	metrics = flag.Duration("metrics", 600*time.Second, "how often to print metrics")
 )
 
 type Temperature struct {
@@ -200,23 +200,30 @@ func (s *Server) GetTemperatures() []Temperature {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
 	return s.Temperatures
-}	
-
+}
 
 func SaveTemperatures(tmps []Temperature) {
+	type X struct {
+		Time         time.Time     `json:"time"`
+		Temperatures []Temperature `json:"temperatures"`
+	}
+	var output X
 	// create timestamp for file
-	t := time.Now().Format("2006-01-02T15:04:05")
+	output.Time = time.Now()
+	output.Temperatures = tmps
 	// save to file
-	f, err := os.OpenFile(fmt.Sprintf("%v-temps.json", t), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("temps.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalln("SaveTemperatures (Open)", err)
 	}
 	defer f.Close()
-	for _, tmp := range tmps {
-		_, err := f.WriteString(fmt.Sprintf("%v\n", tmp))
-		if err != nil {
-			log.Fatalln("SaveTemperatures (Write)", err)
-		}
+	out, err := json.Marshal(output)
+	if err != nil {
+		log.Fatalln("SaveTemperatures (Marshal)", err)
+	}
+	_, err = f.Write(out)
+	if err != nil {
+		log.Fatalln("SaveTemperatures (Write)", err)
 	}
 }
 
