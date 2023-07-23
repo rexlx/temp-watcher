@@ -29,6 +29,7 @@ type Temperature struct {
 }
 
 type Runtime struct {
+	URL      string
 	Duration time.Duration
 	Server   *Server
 	Client   *Client
@@ -36,7 +37,6 @@ type Runtime struct {
 }
 
 type Server struct {
-	URL          string
 	Mu           sync.Mutex
 	TempsPosted  int
 	Port         string
@@ -54,20 +54,24 @@ func main() {
 		run.Server = NewServer(*url, *port)
 		run.Server.Forever()
 	} else {
-		log.Println("Running as client", *url)
+		client := NewClient()
 		for range time.Tick(*poll) {
-			SendTemperatureOverHTTP(PrepareTemperature())
+			client.SendTemperatureOverHTTP(PrepareTemperature())
 		}
 	}
 }
 
 func NewServer(url string, port string) *Server {
 	return &Server{
-		URL:          url,
 		Port:         port,
 		Temperatures: []Temperature{},
 	}
-	// http.HandleFunc("/temperature", run.RecieveTemperatureOverHTTP)
+}
+
+func NewClient() *Client {
+	return &Client{
+		HTTPClient: &http.Client{},
+	}
 }
 
 func (s *Server) Forever() {
@@ -167,16 +171,14 @@ func PrepareTemperature() []byte {
 	return o
 }
 
-func SendTemperatureOverHTTP(t []byte) {
-	// create http client
-	client := &http.Client{}
+func (c *Client) SendTemperatureOverHTTP(t []byte) {
 	req, err := http.NewRequest(http.MethodPost, *url, strings.NewReader(string(t)))
 	if err != nil {
 		log.Println("SendTemperatureOverHTTP (New)", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	// send request
-	resp, err := client.Do(req)
+	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		log.Println("SendTemperatureOverHTTP (Do)", err)
 	}
