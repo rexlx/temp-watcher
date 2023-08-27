@@ -1,12 +1,39 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/minio/minio-go/v7"
 )
+
+// "github.com/minio/minio-go/v7"
+// "github.com/minio/minio-go/v7/pkg/credentials"
+
+var (
+	uri   string = "storage.nullferatu.com:9000"
+	s3Id  string = "RMCMjDSBEUnHT0vO"
+	s3Key string = "OjtUEjI0KEWLCtvDIYy6DwFQ8Pgo6D3g"
+)
+
+type Body struct {
+	EventName string
+	Key       string
+	Records   []struct{}
+}
+
+func (s *Server) fPutObj(bucketName string, objectName string, filePath string) {
+	n, err := s.Storage.FPutObject(context.Background(), bucketName, objectName, filePath, minio.PutObjectOptions{ContentType: "application/zip"})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	log.Printf("Successfully uploaded %s of size %v\n", objectName, n)
+}
 
 // SpaceFieldsJoin takes a string and returns a string with all whitespace replaced with a single space
 func SpaceFieldsJoin(str string) string {

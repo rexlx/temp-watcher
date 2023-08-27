@@ -7,11 +7,15 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 // Server is a struct that holds the state of the server
 type Server struct {
 	Mu           sync.Mutex
+	Storage      *minio.Client
 	TempsPosted  int
 	Port         string
 	TickRate     time.Duration
@@ -23,8 +27,9 @@ type Server struct {
 func (s *Server) AddTemperature(t Temperature) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	if len(s.Temperatures) > 10000 {
+	if len(s.Temperatures) > 999 {
 		SaveTemperatures(s.Temperatures)
+		s.fPutObj("temperatures", fmt.Sprintf("%v.json", time.Now().Unix()), "temps.json")
 		s.Temperatures = nil
 	}
 	s.Temperatures = append(s.Temperatures, t)
@@ -47,8 +52,16 @@ func (s *Server) GetTemperatures() []Temperature {
 
 // returns an address to a new Server
 func NewServer(port string) *Server {
+	mc, err := minio.New(uri, &minio.Options{
+		Creds:  credentials.NewStaticV4(s3Id, s3Key, ""),
+		Secure: false,
+	})
+	if err != nil {
+		log.Fatalln("NewServer", err)
+	}
 	return &Server{
 		Port:         port,
+		Storage:      mc,
 		Temperatures: []Temperature{},
 	}
 }
