@@ -27,10 +27,11 @@ type Server struct {
 func (s *Server) AddTemperature(t Temperature) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	if len(s.Temperatures) > 999 {
+	if len(s.Temperatures) > 2999 {
 		SaveTemperatures(s.Temperatures)
 		s.fPutObj("temperatures", fmt.Sprintf("%v.json", time.Now().Unix()), "temps.json")
 		s.Temperatures = nil
+		log.Println(len(s.Temperatures))
 	}
 	s.Temperatures = append(s.Temperatures, t)
 }

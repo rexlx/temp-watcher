@@ -27,12 +27,14 @@ type Body struct {
 }
 
 func (s *Server) fPutObj(bucketName string, objectName string, filePath string) {
+	start := time.Now()
 	n, err := s.Storage.FPutObject(context.Background(), bucketName, objectName, filePath, minio.PutObjectOptions{ContentType: "application/zip"})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	log.Printf("Successfully uploaded %s of size %v\n", objectName, n)
+	log.Printf("Successfully uploaded %v file in %v", n, time.Since(start))
+	os.Remove(filePath)
 }
 
 // SpaceFieldsJoin takes a string and returns a string with all whitespace replaced with a single space
@@ -69,7 +71,7 @@ func SaveTemperatures(tmps []Temperature) {
 	output.Temperatures = tmps
 
 	// save to file
-	f, err := os.OpenFile("temps.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("temps.json", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalln("SaveTemperatures (Open)", err)
 	}
