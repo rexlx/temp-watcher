@@ -14,7 +14,7 @@ import (
 
 // Server is a struct that holds the state of the server
 type Server struct {
-	Mu           sync.Mutex
+	Mu           sync.RWMutex
 	Storage      *minio.Client
 	TempsPosted  int
 	Port         string
@@ -74,6 +74,7 @@ func (s *Server) Forever() {
 		for range time.Tick(s.TickRate) {
 			log.Println("Temperatures posted:", s.TempsPosted)
 			log.Println("Average temperature:", s.GetAverageTemperature())
+			log.Println("Max temperature:", s.GetMaxTemperature())
 		}
 	}()
 	http.HandleFunc("/temperature", s.RecieveTemperatureOverHTTP)
@@ -95,6 +96,21 @@ func (s *Server) GetAverageTemperature() float64 {
 	}
 
 	return sum / float64(len(s.Temperatures))
+}
+
+func (s *Server) GetMaxTemperature() float64 {
+	var max float64
+
+	s.Mu.RLock()
+	defer s.Mu.RUnlock()
+
+	for _, temp := range s.Temperatures {
+		if temp.Temp > max {
+			max = temp.Temp
+		}
+	}
+
+	return max
 }
 
 func (s *Server) RecieveTemperatureOverHTTP(w http.ResponseWriter, r *http.Request) {
