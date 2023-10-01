@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 // Server is a struct that holds the state of the server
 type Server struct {
+	Log          *log.Logger
 	Mu           sync.RWMutex
 	Storage      *minio.Client
 	TempsPosted  int
@@ -53,6 +55,7 @@ func (s *Server) GetTemperatures() []Temperature {
 
 // returns an address to a new Server
 func NewServer(port string) *Server {
+	logger := log.New(os.Stdout, "-> ", log.LstdFlags)
 	mc, err := minio.New(uri, &minio.Options{
 		Creds:  credentials.NewStaticV4(s3Id, s3Key, ""),
 		Secure: false,
@@ -61,6 +64,7 @@ func NewServer(port string) *Server {
 		log.Fatalln("NewServer", err)
 	}
 	return &Server{
+		Log:          logger,
 		Port:         port,
 		Storage:      mc,
 		Temperatures: []Temperature{},
@@ -69,16 +73,16 @@ func NewServer(port string) *Server {
 
 // Forever runs the server forever, wonder if we should return an error and return our Listener
 func (s *Server) Forever() {
-	log.Println("Running as server", s.Port)
+	s.Log.Println("Running as server", s.Port)
 	go func() {
 		for range time.Tick(s.TickRate) {
-			log.Println("Temperatures posted:", s.TempsPosted)
-			log.Println("Average temperature:", s.GetAverageTemperature())
-			log.Println("Max temperature:", s.GetMaxTemperature())
+			s.Log.Println("Temperatures posted:", s.TempsPosted)
+			s.Log.Println("Average temperature:", s.GetAverageTemperature())
+			s.Log.Println("Max temperature:", s.GetMaxTemperature())
 		}
 	}()
 	http.HandleFunc("/temperature", s.RecieveTemperatureOverHTTP)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", s.Port), nil))
+	s.Log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", s.Port), nil))
 }
 
 func (s *Server) GetAverageTemperature() float64 {
